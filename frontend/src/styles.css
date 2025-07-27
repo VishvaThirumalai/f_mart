@@ -1,0 +1,80 @@
+/* Global Styles */
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.grocery-home {
+  overflow-x: hidden;
+}
+
+/* Navbar Styles */
+.navbar {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.navbar-brand h2 {
+  line-height: 1;
+}
+
+/* Card Hover Effect */
+.hover-effect {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-effect:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Carousel Caption */
+.carousel-caption {
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* Button Styles */
+.btn-success {
+  background-color: #28a745;
+  border-color: #28a745;
+}
+
+.btn-success:hover {
+  background-color: #218838;
+  border-color: #1e7e34;
+}
+
+/* Badge Styles */
+.badge-danger {
+  background-color: #dc3545;
+}
+
+/* Progress Bar */
+.progress {
+  border-radius: 4px;
+}
+
+/* Footer Styles */
+footer a {
+  transition: color 0.3s ease;
+}
+
+footer a:hover {
+  color: #28a745 !important;
+  text-decoration: none;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .carousel-caption {
+    bottom: 20% !important;
+    left: 5% !important;
+  }
+  
+  .carousel-caption h2 {
+    font-size: 1.5rem;
+  }
+  
+  .carousel-caption p {
+    font-size: 0.9rem;
+  }
+}
