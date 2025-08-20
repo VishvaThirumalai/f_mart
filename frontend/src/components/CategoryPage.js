@@ -23,11 +23,13 @@ import {
   FaList,
   FaSortAmountDown
 } from 'react-icons/fa';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { products } from '../data/products';
 import { categories } from '../data/categories';
 import { findCategoryBySlug } from '../utils/categoryUtils';
 import Header from '../Layout/Header';
+import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 
 const CategoryPage = () => {
   const { categoryName } = useParams();
@@ -41,7 +43,6 @@ const CategoryPage = () => {
   const [loading, setLoading] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  const [cartItems, setCartItems] = useState(0);
   const [priceRange, setPriceRange] = useState([0, 1000]);
   const [selectedFilters, setSelectedFilters] = useState({
     organic: false,
@@ -49,6 +50,10 @@ const CategoryPage = () => {
     inStock: true,
     freeShipping: false
   });
+  
+  const { isAuthenticated } = useAuth();
+  const { addToCart: addToCartContext, cartItems } = useCart();
+  const navigate = useNavigate();
   
   const productsPerPage = viewMode === 'grid' ? 12 : 8;
 
@@ -115,14 +120,25 @@ const CategoryPage = () => {
     });
   };
 
-  const addToCart = (product) => {
+  const addToCart = async (product) => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setCartItems(prev => prev + 1);
+    
+    const result = await addToCartContext(product);
+    
+    if (result.success) {
       setToastMessage(`${product.name} added to cart!`);
       setShowToast(true);
-    }, 500);
+    } else {
+      setToastMessage(result.message || 'Failed to add to cart');
+      setShowToast(true);
+    }
+    
+    setLoading(false);
   };
 
   const handleQuickView = (product) => {
@@ -178,7 +194,7 @@ const CategoryPage = () => {
       {/* Fixed Header */}
       <div className="fixed-header">
         <Header 
-          cartItems={cartItems}
+          cartItems={cartItems.length}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
         />
@@ -222,7 +238,7 @@ const CategoryPage = () => {
           top: 170px; /* Below breadcrumbs */
           left: 0;
           width: 300px;
-          height: calc(100vh - 170px);
+          height: calc(100vh - 150px);
           overflow-y: auto;
           background: white;
           border-radius: 0 20px 20px 0;
@@ -247,12 +263,12 @@ const CategoryPage = () => {
         
         .content-area {
           margin-left: 320px; /* Account for fixed sidebar */
-          padding: 20px;
+          padding: 10px;
         }
         
         .breadcrumb-above-sidebar {
           position: fixed;
-          top: 140px;
+          top: 1px;
           left: 20px;
           z-index: 850;
           background: rgba(255,255,255,0.95);
@@ -266,7 +282,7 @@ const CategoryPage = () => {
         
         .view-toggle-top {
           position: fixed;
-          top: 140px;
+          top: 1px;
           right: 20px;
           z-index: 850;
           background: white;
@@ -303,7 +319,7 @@ const CategoryPage = () => {
         }
         
         .product-card:hover .product-image {
-          transform: scale(1.05); /* Reduced from 1.1 */
+          transform: scale(1.02); 
         }
         
         .product-overlay {
@@ -845,9 +861,9 @@ const CategoryPage = () => {
             viewMode === 'grid' ? (
               <Row className="g-4">
                 {currentProducts.map((product, index) => (
-                  <Col key={product.id} xs={6} md={6} lg={4} className="mb-4">
+                  <Col key={product.id} xs={6} md={4} lg={3} className="mb-4">
                     <Card className={`product-card h-100 animate-fade-in`} style={{animationDelay: `${index * 0.1}s`}}>
-                      <div className="product-image-container" style={{ height: '200px' }}>
+                      <div className="product-image-container" style={{ height: '180px' }}>
                         {/* Product Badges */}
                         <div className="product-badge">
                           {product.organic && (
@@ -878,6 +894,7 @@ const CategoryPage = () => {
                           src={product.image || '/images/placeholder-product.jpg'}
                           alt={product.name}
                           className="product-image"
+                          style={{ objectFit: 'cover', width: '100%', height: '100%' }}
                           onError={(e) => {
                             e.target.src = '/images/placeholder-product.jpg';
                           }}
