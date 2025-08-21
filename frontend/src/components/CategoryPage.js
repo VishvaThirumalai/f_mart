@@ -30,6 +30,7 @@ import { findCategoryBySlug } from '../utils/categoryUtils';
 import Header from '../Layout/Header';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import './CategoryPage.css'; // Import the CSS file
 
 const CategoryPage = () => {
   const { categoryName } = useParams();
@@ -40,7 +41,8 @@ const CategoryPage = () => {
   const [viewMode, setViewMode] = useState('grid');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showQuickView, setShowQuickView] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [addingToCartId, setAddingToCartId] = useState(null);
+  const [generalLoading, setGeneralLoading] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [priceRange, setPriceRange] = useState([0, 1000]);
@@ -52,10 +54,22 @@ const CategoryPage = () => {
   });
   
   const { isAuthenticated } = useAuth();
-  const { addToCart: addToCartContext, cartItems } = useCart();
+  const { addToCart: addToCartContext, cart } = useCart();
   const navigate = useNavigate();
   
   const productsPerPage = viewMode === 'grid' ? 12 : 8;
+
+  // Debug cart context
+  useEffect(() => {
+    console.log('Cart context:', { cart, addToCartContext });
+  }, [cart, addToCartContext]);
+
+  // Check if addToCartContext is a function
+  useEffect(() => {
+    if (addToCartContext && typeof addToCartContext !== 'function') {
+      console.error('addToCartContext is not a function:', addToCartContext);
+    }
+  }, [addToCartContext]);
 
   // Find current category
   const currentCategory = findCategoryBySlug(categoryName, categories);
@@ -121,24 +135,44 @@ const CategoryPage = () => {
   };
 
   const addToCart = async (product) => {
+    console.log('Adding to cart:', product);
+    
     if (!isAuthenticated) {
       navigate('/login');
       return;
     }
 
-    setLoading(true);
-    
-    const result = await addToCartContext(product);
-    
-    if (result.success) {
-      setToastMessage(`${product.name} added to cart!`);
+    // Check if addToCartContext is a function
+    if (typeof addToCartContext !== 'function') {
+      console.error('addToCartContext is not a function');
+      setToastMessage('Cart functionality not available');
       setShowToast(true);
-    } else {
-      setToastMessage(result.message || 'Failed to add to cart');
-      setShowToast(true);
+      return;
     }
+
+    setAddingToCartId(product.id);
+    setGeneralLoading(true);
     
-    setLoading(false);
+    try {
+      const result = await addToCartContext(product, 1);
+      console.log('Add to cart result:', result);
+      
+      if (result && result.success) {
+        setToastMessage(`${product.name} added to cart!`);
+        setShowToast(true);
+      } else {
+        const errorMsg = result?.message || 'Failed to add to cart';
+        setToastMessage(errorMsg);
+        setShowToast(true);
+      }
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      setToastMessage('Failed to add to cart. Please try again.');
+      setShowToast(true);
+    } finally {
+      setAddingToCartId(null);
+      setGeneralLoading(false);
+    }
   };
 
   const handleQuickView = (product) => {
@@ -194,493 +228,10 @@ const CategoryPage = () => {
       {/* Fixed Header */}
       <div className="fixed-header">
         <Header 
-          cartItems={cartItems.length}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
         />
       </div>
-
-      <style jsx>{`
-        .fixed-header {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          z-index: 1000;
-          background: white;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .category-page {
-          background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-          min-height: 100vh;
-          padding-top: 80px; /* Account for fixed header */
-        }
-        
-        .hero-header {
-          background: #f8f9fa;
-          border-bottom: 1px solid #e9ecef;
-          position: sticky;
-          top: 80px;
-          z-index: 900;
-        }
-        
-        .hero-content {
-          padding: 0.75rem 0;
-        }
-        
-        .main-content {
-          padding-top: 0;
-        }
-        
-        .fixed-sidebar {
-          position: fixed;
-          top: 170px; /* Below breadcrumbs */
-          left: 0;
-          width: 300px;
-          height: calc(100vh - 150px);
-          overflow-y: auto;
-          background: white;
-          border-radius: 0 20px 20px 0;
-          box-shadow: 2px 0 15px rgba(0,0,0,0.1);
-          z-index: 800;
-          padding: 25px;
-        }
-        
-        .fixed-sidebar::-webkit-scrollbar {
-          width: 6px;
-        }
-        
-        .fixed-sidebar::-webkit-scrollbar-track {
-          background: #f1f1f1;
-          border-radius: 3px;
-        }
-        
-        .fixed-sidebar::-webkit-scrollbar-thumb {
-          background: #28a745;
-          border-radius: 3px;
-        }
-        
-        .content-area {
-          margin-left: 320px; /* Account for fixed sidebar */
-          padding: 10px;
-        }
-        
-        .breadcrumb-above-sidebar {
-          position: fixed;
-          top: 1px;
-          left: 20px;
-          z-index: 850;
-          background: rgba(255,255,255,0.95);
-          backdrop-filter: blur(10px);
-          border-radius: 8px;
-          padding: 6px 12px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-          width: fit-content;
-          font-size: 0.8rem;
-        }
-        
-        .view-toggle-top {
-          position: fixed;
-          top: 1px;
-          right: 20px;
-          z-index: 850;
-          background: white;
-          border-radius: 12px;
-          padding: 4px;
-          box-shadow: 0 3px 12px rgba(0,0,0,0.1);
-        }
-        
-        .product-card {
-          transition: all 0.3s ease;
-          border: none;
-          border-radius: 15px;
-          overflow: hidden;
-          background: white;
-          box-shadow: 0 5px 20px rgba(0,0,0,0.08);
-        }
-        
-        .product-card:hover {
-          transform: translateY(-5px);
-          box-shadow: 0 15px 35px rgba(0,0,0,0.15);
-        }
-        
-        .product-image-container {
-          position: relative;
-          overflow: hidden;
-          background: #f8f9fa;
-        }
-        
-        .product-image {
-          transition: transform 0.3s ease;
-          object-fit: cover;
-          width: 100%;
-          height: 100%;
-        }
-        
-        .product-card:hover .product-image {
-          transform: scale(1.02); 
-        }
-        
-        .product-overlay {
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.6);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          opacity: 0;
-          transition: opacity 0.3s ease;
-        }
-        
-        .product-card:hover .product-overlay {
-          opacity: 1;
-        }
-        
-        .quick-actions {
-          display: flex;
-          gap: 10px;
-        }
-        
-        .quick-action-btn {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          border: none;
-          background: white;
-          color: #333;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.3s ease;
-          box-shadow: 0 3px 10px rgba(0,0,0,0.2);
-        }
-        
-        .quick-action-btn:hover {
-          transform: scale(1.1);
-          background: #28a745;
-          color: white;
-        }
-        
-        .product-badge {
-          position: absolute;
-          top: 15px;
-          left: 15px;
-          z-index: 3;
-        }
-        
-        .organic-badge {
-          background: linear-gradient(45deg, #4CAF50, #81C784);
-          color: white;
-          padding: 5px 12px;
-          border-radius: 15px;
-          font-size: 0.75rem;
-          font-weight: bold;
-          box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
-        }
-        
-        .sale-badge {
-          background: linear-gradient(45deg, #FF5722, #FF8A65);
-          color: white;
-          padding: 5px 12px;
-          border-radius: 15px;
-          font-size: 0.75rem;
-          font-weight: bold;
-          box-shadow: 0 2px 8px rgba(255, 87, 34, 0.3);
-        }
-        
-        .wishlist-btn {
-          position: absolute;
-          top: 15px;
-          right: 15px;
-          z-index: 3;
-          width: 35px;
-          height: 35px;
-          border-radius: 50%;
-          border: none;
-          background: rgba(255,255,255,0.9);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.3s ease;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        .wishlist-btn:hover {
-          background: white;
-          transform: scale(1.05);
-        }
-        
-        .filter-sidebar {
-          background: transparent;
-        }
-        
-        .filter-title {
-          color: #333;
-          font-weight: bold;
-          margin-bottom: 20px;
-          padding-bottom: 10px;
-          border-bottom: 2px solid #f8f9fa;
-        }
-        
-        .custom-checkbox {
-          position: relative;
-          margin-bottom: 15px;
-        }
-        
-        .custom-checkbox input[type="checkbox"] {
-          opacity: 0;
-          position: absolute;
-        }
-        
-        .custom-checkbox label {
-          position: relative;
-          padding-left: 35px;
-          cursor: pointer;
-          font-size: 0.95rem;
-          color: #666;
-          transition: color 0.3s ease;
-        }
-        
-        .custom-checkbox label:before {
-          content: '';
-          position: absolute;
-          left: 0;
-          top: 2px;
-          width: 20px;
-          height: 20px;
-          border: 2px solid #ddd;
-          border-radius: 4px;
-          background: white;
-          transition: all 0.3s ease;
-        }
-        
-        .custom-checkbox input[type="checkbox"]:checked + label:before {
-          background: #28a745;
-          border-color: #28a745;
-        }
-        
-        .custom-checkbox input[type="checkbox"]:checked + label:after {
-          content: '✓';
-          position: absolute;
-          left: 4px;
-          top: 0px;
-          color: white;
-          font-size: 14px;
-          font-weight: bold;
-        }
-        
-        .view-toggle {
-          background: white;
-          border-radius: 15px;
-          padding: 5px;
-          box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-          position: sticky;
-          top: 200px;
-          z-index: 600;
-          margin-bottom: 20px;
-        }
-        
-        .view-toggle-btn {
-          padding: 8px 15px;
-          border: none;
-          background: transparent;
-          color: #666;
-          border-radius: 10px;
-          transition: all 0.3s ease;
-        }
-        
-        .view-toggle-btn.active {
-          background: #28a745;
-          color: white;
-          box-shadow: 0 2px 10px rgba(40, 167, 69, 0.3);
-        }
-        
-        .list-view-card {
-          display: flex;
-          background: white;
-          border-radius: 15px;
-          overflow: hidden;
-          box-shadow: 0 5px 20px rgba(0,0,0,0.08);
-          transition: all 0.3s ease;
-          margin-bottom: 20px;
-        }
-        
-        .list-view-card:hover {
-          transform: translateY(-3px);
-          box-shadow: 0 10px 30px rgba(0,0,0,0.12);
-        }
-        
-        .stats-bar {
-          background: white;
-          border-radius: 15px;
-          padding: 15px;
-          margin-bottom: 20px;
-          box-shadow: 0 5px 20px rgba(0,0,0,0.08);
-          position: sticky;
-          top: 180px;
-          z-index: 600;
-        }
-        
-        .animate-fade-in {
-          animation: fadeIn 0.4s ease-out forwards;
-        }
-        
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        .search-bar {
-          background: white;
-          border-radius: 20px;
-          box-shadow: 0 3px 15px rgba(0,0,0,0.1);
-          border: none;
-          overflow: hidden;
-        }
-        
-        .search-input {
-          border: none;
-          padding: 12px 18px;
-          font-size: 0.95rem;
-        }
-        
-        .search-input:focus {
-          box-shadow: none;
-          outline: none;
-        }
-        
-        .search-btn {
-          background: linear-gradient(45deg, #28a745, #20c997);
-          border: none;
-          padding: 12px 18px;
-          color: white;
-          transition: all 0.3s ease;
-        }
-        
-        .search-btn:hover {
-          background: linear-gradient(45deg, #218838, #1aa179);
-        }
-        
-        .pagination-custom .page-link {
-          border: none;
-          border-radius: 8px;
-          margin: 0 3px;
-          padding: 10px 15px;
-          background: white;
-          color: #666;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-          transition: all 0.3s ease;
-        }
-        
-        .pagination-custom .page-link:hover {
-          background: #28a745;
-          color: white;
-          transform: translateY(-1px);
-        }
-        
-        .pagination-custom .page-item.active .page-link {
-          background: #28a745;
-          color: white;
-          box-shadow: 0 3px 10px rgba(40, 167, 69, 0.3);
-        }
-        
-        .toast-container {
-          position: fixed;
-          top: 100px;
-          right: 20px;
-          z-index: 10000;
-        }
-        
-        .custom-toast {
-          background: linear-gradient(45deg, #28a745, #20c997);
-          color: white;
-          border: none;
-          border-radius: 15px;
-          box-shadow: 0 10px 30px rgba(40, 167, 69, 0.3);
-        }
-        
-        .breadcrumb-custom .breadcrumb-item + .breadcrumb-item::before {
-          content: "›";
-          color: #666;
-          font-weight: normal;
-          margin: 0 6px;
-        }
-        
-        .breadcrumb-custom .breadcrumb-item a {
-          color: #28a745;
-          text-decoration: none;
-          font-size: 0.8rem;
-        }
-        
-        .breadcrumb-custom .breadcrumb-item.active {
-          color: #333;
-          font-weight: 500;
-          font-size: 0.8rem;
-        }
-        
-        .view-toggle-btn-top {
-          padding: 6px 10px;
-          border: none;
-          background: transparent;
-          color: #666;
-          border-radius: 8px;
-          transition: all 0.3s ease;
-          font-size: 0.9rem;
-        }
-        
-        .view-toggle-btn-top.active {
-          background: #28a745;
-          color: white;
-          box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
-        }
-        
-        /* Simple hero styles */
-        .simple-hero-title {
-          color: #333;
-          font-size: 1.75rem;
-          font-weight: 600;
-          margin: 0;
-        }
-        
-        .simple-hero-count {
-          color: #28a745;
-          font-weight: 500;
-          font-size: 0.9rem;
-        }
-
-        /* Responsive Design */
-        @media (max-width: 1200px) {
-          .fixed-sidebar {
-            width: 280px;
-          }
-          .content-area {
-            margin-left: 300px;
-          }
-        }
-        
-        @media (max-width: 992px) {
-          .fixed-sidebar {
-            position: relative;
-            width: 100%;
-            height: auto;
-            border-radius: 15px;
-            margin-bottom: 20px;
-          }
-          .content-area {
-            margin-left: 0;
-          }
-        }
-      `}</style>
 
       <div className="category-page">
 
@@ -983,10 +534,10 @@ const CategoryPage = () => {
                             variant="success" 
                             className="w-100 rounded-pill fw-bold"
                             onClick={() => addToCart(product)}
-                            disabled={loading}
+                            disabled={generalLoading || addingToCartId === product.id}
                             size="sm"
                           >
-                            {loading ? (
+                            {addingToCartId === product.id ? (
                               <Spinner size="sm" className="me-2" />
                             ) : (
                               <FaShoppingCart className="me-2" />
@@ -1078,10 +629,14 @@ const CategoryPage = () => {
                               variant="success" 
                               className="rounded-pill fw-bold"
                               onClick={() => addToCart(product)}
-                              disabled={loading}
+                              disabled={generalLoading || addingToCartId === product.id}
                               size="sm"
                             >
-                              <FaShoppingCart className="me-2" />
+                              {addingToCartId === product.id ? (
+                                <Spinner size="sm" className="me-2" />
+                              ) : (
+                                <FaShoppingCart className="me-2" />
+                              )}
                               Add to Cart
                             </Button>
                             <div className="d-flex gap-2">
@@ -1332,8 +887,13 @@ const CategoryPage = () => {
                         addToCart(selectedProduct);
                         setShowQuickView(false);
                       }}
+                      disabled={generalLoading || addingToCartId === selectedProduct.id}
                     >
-                      <FaShoppingCart className="me-2" />
+                      {addingToCartId === selectedProduct.id ? (
+                        <Spinner size="sm" className="me-2" />
+                      ) : (
+                        <FaShoppingCart className="me-2" />
+                      )}
                       Add to Cart
                     </Button>
                     <Button 
@@ -1353,7 +913,7 @@ const CategoryPage = () => {
         </Modal>
 
         {/* Loading Overlay */}
-        {loading && (
+        {generalLoading && (
           <div style={{
             position: 'fixed',
             top: 0,
